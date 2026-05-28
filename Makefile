@@ -12,7 +12,7 @@ LOCALIMAGE  := $(BUILDDIR)/fedora-coreos-$(COREOS)-qemu.$(ARCH).qcow2
 IGNITION    := $(BUILDDIR)/config.ign
 QUAYIO      ?= quay.io
 
-.PHONY: all local data-disk upload remote clean
+.PHONY: all local clean
 
 all: local
 
@@ -24,14 +24,14 @@ $(LOCALIMAGE):
 		-v ."/$(BUILDDIR)://data" -w //data \
 		$(QUAYIO)/coreos/coreos-installer:release \
 			download -s "$(STREAM)" -p qemu -a "$(ARCH)" -f qcow2.xz -C //data
-	unxz "$(LOCALIMAGE).xz"
+	unxz "$@.xz"
 
 $(IGNITION): $(CONFIG)
 	mkdir -p "$(BUILDDIR)"
 	podman run --rm -i \
 		-v .://data -w //data \
 		"$(QUAYIO)/coreos/butane:release" \
-			--files-dir //data --pretty --strict "//data/$(CONFIG)" > $@
+			--files-dir //data --pretty --strict "//data/$<" > "$@"
 
 $(SYSTEMDISK): $(LOCALIMAGE)
 	qemu-img create -f qcow2 -F qcow2 -b "../$<" $@
