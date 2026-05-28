@@ -1,0 +1,17 @@
+[Unit]
+Description=evcc
+
+[Container]
+AutoUpdate=registry
+ContainerName=evcc
+Image=docker.io/evcc/evcc:latest
+Network=host
+SecurityLabelDisable=true
+Volume=/etc/localtime:/etc/localtime:ro
+Volume=/var/mnt/data/evcc:/root/.evcc
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target default.target
