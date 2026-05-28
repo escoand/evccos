@@ -5,6 +5,7 @@ STREAM      := stable
 BUILDDIR    := build
 DATASIZE    := 1G
 DATALABEL   := data
+SYSTEMDISK  := $(BUILDDIR)/system.img
 DATADISK    := $(BUILDDIR)/data.img
 ARCH        := x86_64
 LOCALIMAGE  := $(BUILDDIR)/fedora-coreos-$(COREOS)-qemu.$(ARCH).qcow2
@@ -22,7 +23,8 @@ $(LOCALIMAGE):
 		--pull=always \
 		-v ."/$(BUILDDIR)://data" -w //data \
 		$(QUAYIO)/coreos/coreos-installer:release \
-			download -s "$(STREAM)" -p qemu -a $(ARCH) -f qcow2.xz -C //data
+			download -s "$(STREAM)" -p qemu -a "$(ARCH)" -f qcow2.xz -C //data
+	unxz "$(LOCALIMAGE).xz"
 
 $(IGNITION): $(CONFIG)
 	mkdir -p "$(BUILDDIR)"
@@ -31,16 +33,18 @@ $(IGNITION): $(CONFIG)
 		"$(QUAYIO)/coreos/butane:release" \
 			--files-dir //data --pretty --strict "//data/$(CONFIG)" > $@
 
+$(SYSTEMDISK): $(LOCALIMAGE)
+	qemu-img create -f qcow2 -F qcow2 -b "../$<" $@
+
 $(DATADISK):
 	mkdir -p "$(BUILDDIR)"
 	qemu-img create -f raw "$@" "$(DATASIZE)"
-# mkfs.ext4 -L "$(DATALABEL)" "$@"
 
-local: $(IGNITION) $(LOCALIMAGE) $(DATADISK)
+local: $(IGNITION) $(SYSTEMDISK) $(DATADISK)
 	kvm \
 		-m 4096 \
 		-boot c \
-		-drive "if=virtio,file=$(LOCALIMAGE),snapshot=on" \
+		-drive "if=virtio,file=$(SYSTEMDISK)" \
 		-drive "if=virtio,file=$(DATADISK),format=raw" \
 		-fw_cfg "name=opt/com.coreos/config,file=$(IGNITION)" \
 		-nic "user,model=virtio,hostfwd=tcp::2222-:22,hostfwd=tcp:127.0.0.1:8080-:7070" \

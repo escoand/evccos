@@ -1,5 +1,6 @@
 [Unit]
 Description=tailscale
+After=network-online.target
 
 [Container]
 AddCapability=NET_ADMIN
@@ -16,4 +17,4 @@ Volume=/var/lib:/var/lib
 Restart=always
 
 [Install]
-WantedBy=network-online.target
+WantedBy=multi-user.target default.target
