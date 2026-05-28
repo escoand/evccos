@@ -1,46 +1,56 @@
 CONFIG      := infra/config.bu
-COREOS      := 44.20260419.3.1
-STREAM      := stable
+COREOS      := 44.20260510.3.1
+STREAM      ?= stable
 
-BUILDDIR    := build
+BUILDDIR    := ./build
+IGNITION    := $(BUILDDIR)/config.ign
+ASSETDIR    := $(BUILDDIR)/assets
+
+# qemu
 DATASIZE    := 1G
 DATALABEL   := data
-SYSTEMDISK  := $(BUILDDIR)/system.img
-DATADISK    := $(BUILDDIR)/data.img
+SYSTEMDISK  := $(BUILDDIR)/qemu.system.img
+DATADISK    := $(BUILDDIR)/qemu.data.img
 ARCH        := x86_64
-LOCALIMAGE  := $(BUILDDIR)/fedora-coreos-$(COREOS)-qemu.$(ARCH).qcow2
-IGNITION    := $(BUILDDIR)/config.ign
-QUAYIO      ?= quay.io
+QEMUIMAGE   := $(ASSETDIR)/fedora-coreos-$(COREOS)-qemu.$(ARCH).qcow2
 
-.PHONY: all local clean
+# rpi4
+RPI4DISK    := $(BUILDDIR)/rpi4.system.img
+RPI4IMAGE   := $(ASSETDIR)/fedora-coreos-$(COREOS)-metal.aarch64.raw
 
-all: local
+.PHONY: all qemu clean
 
-$(LOCALIMAGE):
-	mkdir -p "$(BUILDDIR)"
+all: qemu
+
+$(QEMUIMAGE):
+	mkdir -p "$(ASSETDIR)"
 	podman run --rm -it \
 		--security-opt label=disable \
-		--pull=always \
-		-v ."/$(BUILDDIR)://data" -w //data \
-		$(QUAYIO)/coreos/coreos-installer:release \
-			download -s "$(STREAM)" -p qemu -a "$(ARCH)" -f qcow2.xz -C //data
-	unxz "$@.xz"
+		-v "$(ASSETDIR):/assets" \
+		quay.io/coreos/coreos-installer:release \
+			download \
+				--architecture "$(ARCH)" \
+				--directory /assets \
+				--decompress \
+				--format qcow2.xz \
+				--platform qemu \
+				--stream "$(STREAM)"
 
 $(IGNITION): $(CONFIG)
 	mkdir -p "$(BUILDDIR)"
 	podman run --rm -i \
-		-v .://data -w //data \
-		"$(QUAYIO)/coreos/butane:release" \
-			--files-dir //data --pretty --strict "//data/$<" > "$@"
+		-v .:/data \
+		quay.io/coreos/butane:release \
+			--files-dir /data --pretty --strict "/data/$<" > "$@"
 
-$(SYSTEMDISK): $(LOCALIMAGE)
+$(SYSTEMDISK): $(QEMUIMAGE)
 	qemu-img create -f qcow2 -F qcow2 -b "../$<" $@
 
 $(DATADISK):
 	mkdir -p "$(BUILDDIR)"
 	qemu-img create -f raw "$@" "$(DATASIZE)"
 
-local: $(IGNITION) $(SYSTEMDISK) $(DATADISK)
+qemu: $(IGNITION) $(SYSTEMDISK) $(DATADISK)
 	kvm \
 		-m 4096 \
 		-boot c \
@@ -48,8 +58,50 @@ local: $(IGNITION) $(SYSTEMDISK) $(DATADISK)
 		-drive "if=virtio,file=$(DATADISK),format=raw" \
 		-fw_cfg "name=opt/com.coreos/config,file=$(IGNITION)" \
 		-nic "user,model=virtio,hostfwd=tcp::2222-:22,hostfwd=tcp:127.0.0.1:8080-:7070" \
-		-chardev "vc,id=char0,logfile=$(BUILDDIR)/qemu-serial.log" \
+		-chardev "vc,id=char0,logfile=$(BUILDDIR)/qemu.serial.log" \
 		-serial chardev:char0
 
+$(RPI4IMAGE):
+	mkdir -p "$(ASSETDIR)"
+	podman run --rm -it \
+		--security-opt label=disable \
+		-v "$(ASSETDIR):/assets" \
+		quay.io/coreos/coreos-installer:release \
+			download \
+				--architecture aarch64 \
+				--directory /assets \
+				--decompress \
+				--format raw.xz \
+				--platform metal \
+				--stream "$(STREAM)"
+
+$(RPI4DISK):
+	qemu-img create -f qcow2 "$@" 4G
+
+rpi4-boot:
+	mkdir -p "$(ASSETDIR)" "$(BUILDDIR)/$@/"
+	podman run --rm \
+		-v "$(ASSETDIR):/assets" \
+		-v "$(BUILDDIR):/data" -w /data \
+		fedora sh -c ' \
+			dnf download \
+				--destdir=/assets \
+				--forcearch=aarch64 \
+				--resolve \
+				uboot-images-armv8 bcm283x-firmware bcm283x-overlays && \
+			dnf install -qy cpio && \
+			ls /assets/*.rpm | xargs -i sh -c " \
+				rpm2cpio {} | \
+				cpio -idD /data/$@/ ./boot/efi/* ./usr/share/uboot/rpi_arm64/u-boot.bin \
+			" \
+		'
+	mv "$(BUILDDIR)/$@/usr/share/uboot/rpi_arm64/u-boot.bin" "$(BUILDDIR)/$@/boot/efi/"
+	rm -rf "$(BUILDDIR)/$@/usr"
+
+rpi4: rpi4-boot $(RPI4DISK) $(IGNITION)
+
 clean:
-	rm -f $(IGNITION) $(LOCALIMAGE) $(DATADISK)
+	rm -fr "$(IGNITION)" "$(ASSETDIR)" "$(BUILDDIR)/rpi4-boot/" "$(SYSTEMDISK)" "$(RPI4DISK)"
+
+clean-all: clean
+	rm -fr "$(DATADISK)"
