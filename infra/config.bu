@@ -21,11 +21,22 @@ storage:
       format: ext4
       path: /var/mnt/data
       with_mount_unit: true
+  # full image or use rebase.service
   trees:
-    - local: filesystem
+  - local: filesystem
+  directories:
+    - path: /var/mnt/data
+      mode: 0770
+      user:
+        name: core
+      group:
+        name: core
   links:
     - path: /etc/localtime
       target: /usr/share/zoneinfo/Europe/Berlin
-    # enable services
-    - path: /etc/systemd/system/default.target.wants/fix-permissions.service
-      target: /etc/systemd/system/fix-permissions.service
+
+systemd:
+  units:
+    #- name: rebase.service
+    #  enabled: true
+    #  contents_local: infra/rebase.service

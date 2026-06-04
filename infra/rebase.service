@@ -1,0 +1,14 @@
+[Unit]
+After=ignition-firstboot-complete.target network-online.target
+ConditionFirstBoot=true
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/bin/systemctl stop zincati
+ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver --reboot ostree-unverified-registry:quay.io/fedora/fedora-coreos:stable
+ExecStartPost=/usr/bin/systemctl reboot
+
+[Install]
+WantedBy=multi-user.target default.target

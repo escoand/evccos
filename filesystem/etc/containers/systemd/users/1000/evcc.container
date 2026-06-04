@@ -11,6 +11,7 @@ Volume=/etc/localtime:/etc/localtime:ro
 Volume=/var/mnt/data/evcc:/root/.evcc
 
 [Service]
+ExecStartPre=mkdir -p /var/mnt/data/evcc
 Restart=always
 
 [Install]
