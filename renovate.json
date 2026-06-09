@@ -1,0 +1,43 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "enabledManagers": [
+    "regex"
+  ],
+  "minimumReleaseAge": "14 days",
+  "regexManagers": [
+    {
+      "fileMatch": [
+        "\\.container$"
+      ],
+      "matchStrings": [
+        "(?m)^Image=(?<depName>[^:\\s]+):(?<currentValue>[^\\s]+)\\s*$"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "fileMatch": [
+        "^Makefile$"
+      ],
+      "matchStrings": [
+        "(?m)^COREOS\\s*:?=\\s*(?<currentValue>[^\\s]+)\\s*$"
+      ],
+      "depNameTemplate": "fedora-coreos-stable",
+      "packageNameTemplate": "stable",
+      "datasourceTemplate": "custom.fedora-coreos-stable",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "customDatasources": {
+    "fedora-coreos-stable": {
+      "defaultRegistryUrlTemplate": "https://builds.coreos.fedoraproject.org/streams/stable.json",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\":[{\"version\": architectures.x86_64.artifacts.qemu.release}]}"
+      ]
+    }
+  }
+}

@@ -4,7 +4,7 @@ Description=evcc
 [Container]
 AutoUpdate=registry
 ContainerName=evcc
-Image=docker.io/evcc/evcc:latest
+Image=docker.io/evcc/evcc:0.308.1
 Network=host
 SecurityLabelDisable=true
 Volume=/etc/localtime:/etc/localtime:ro

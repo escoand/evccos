@@ -3,10 +3,6 @@
 set -e
 
 LOCALREGISTRY=127.0.0.1:5000
-IMAGES="
-    docker.io/evcc/evcc:latest
-    docker.io/tailscale/tailscale:latest
-"
 
 docker run \
     --detach \
@@ -15,7 +11,9 @@ docker run \
     --replace \
     registry
 
-for IMAGE in $IMAGES; do
+find filesystem -name "*.container" -exec grep -h ^Image= {} + |
+tr -d '\r' |
+while IFS="=" read -r _ IMAGE; do
     docker pull "$IMAGE"
     docker tag "$IMAGE" "$LOCALREGISTRY/${IMAGE#*/}"
     docker push --tls-verify=false "$LOCALREGISTRY/${IMAGE#*/}"

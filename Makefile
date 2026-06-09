@@ -1,4 +1,4 @@
-COREOS      := 44.20260510.3.2
+COREOS      := 44.20260510.3.1
 STREAM      ?= stable
 
 BUILDDIR    := ./build
@@ -15,9 +15,9 @@ ARCH        := $(shell arch)
 QEMUIMAGE   := $(ASSETDIR)/fedora-coreos-$(COREOS)-qemu.$(ARCH).qcow2
 QEMU        := qemu-system-$(ARCH)
 ifeq ($(OS),Windows_NT)
-  ACCELL    := -accel whpx
+  QEMU      += -accel whpx
 else
-  ACCELL    := -accel kvm
+  QEMU      += -accel kvm
 endif
 
 # rpi4
@@ -72,7 +72,6 @@ $(BUILDDIR)/qemu.ign: $(BUILDDIR)/config.ign
 .PHONY: qemu
 qemu: $(BUILDDIR)/qemu.ign $(SYSTEMDISK) $(DATADISK)
 	$(QEMU) \
-		$(ACCELL) \
 		-m 4096 \
 		-boot c \
 		-drive "if=virtio,file=$(SYSTEMDISK)" \

@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=/usr/bin/systemctl stop zincati
-ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver --reboot ostree-unverified-registry:ghcr.io/escoand/evccos:latest
+ExecStart=/usr/bin/rpm-ostree rebase --bypass-driver --reboot ostree-unverified-registry:ghcr.io/escoand/evccos:stable
 ExecStartPost=/usr/bin/systemctl reboot
 
 [Install]

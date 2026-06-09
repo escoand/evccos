@@ -1,4 +1,1 @@
 build/
-filesystem/**/*.conf
-filesystem/**/*.json
-.env
